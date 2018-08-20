@@ -1,6 +1,6 @@
 CC=g++
 CFLAGS=-Wall -I/usr/local/include -O3
-CFLAGSLINK=-lgmp -lpthread -L/usr/local/lib/ -lssl -lcrypto
+CFLAGSLINK=-lgmp -lpthread -L/usr/local/lib/ -lssl -lcrypto -lopencv_core -lopencv_highgui -lopencv_imgproc -lopencv_videoio -lopencv_imgcodecs
 SOURCES=
 
 all: unicorn clean

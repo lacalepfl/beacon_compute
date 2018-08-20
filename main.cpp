@@ -14,6 +14,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <opencv2/opencv.hpp>
+
 #include "sloth.h"
 
 
@@ -129,7 +131,7 @@ int digest_file(const char *path, char outputBuffer[], const std::string digest_
     return 0;
 }
 
-int getSlothResults(const char* outFile, char witness[], char commitment[], char outputBuffer[], char string[], int bits, int iterations, const char s1[]){
+int getSlothResults(const char* outFile, char witness[], char commitment[], char outputBuffer[], char string[], int bits, int iterations){
     
     /* Erreur si le nom du fichier est null */
     if(outFile ==NULL){
@@ -150,36 +152,44 @@ int getSlothResults(const char* outFile, char witness[], char commitment[], char
     fprintf(sortie, "%s\n", commitment);
     fprintf(sortie, "%s\n", witness);
     fprintf(sortie, "%s\n", outputBuffer);
-    fprintf(sortie, "%s\n", s1);
     fclose(sortie);
     return 0;
     
 }
 
-void generateRandom(char* rand){
+void digest_img_and_file( const char *img_filename, const char *tweet_filename, char outputBuffer[], const std::string digest_name){
     
-    //hash du contenu de dev/urandom
-    digest_file("/dev/urandom", rand, "SHA512");
-    std::string str = rand;
-    //hash du hash du contenu de dev/urandom concaténé à la chaine sloth
-    sloth_digest(rand, (str + "sloth").c_str());   //on peut utiliser digest a la place de sloth_digest
-     
-}
+    digest_file(tweet_filename, outputBuffer, digest_name);
+    std::string strtweet = outputBuffer;
 
-void digest_rand_and_file(char* rand, const char *filename, char outputBuffer[], const std::string digest_name){
-    
-    digest_file(filename, outputBuffer, digest_name);
-    std::string str = outputBuffer;
-    sloth_digest(outputBuffer, (str + rand).c_str());
+    digest_file(img_filename, outputBuffer, digest_name);
+    std::string strimg = outputBuffer;
+
+    sloth_digest(outputBuffer, (strtweet + strimg).c_str());
         
 }
 
+void image_capture (std::string file_name, cv::VideoCapture camera) {
+    int frame_width = 1280;
+    int frame_height = 720;
+    
+    camera.set(CV_CAP_PROP_FRAME_WIDTH, frame_width);
+    camera.set(CV_CAP_PROP_FRAME_HEIGHT, frame_height);
+    
+    
+    cv::Mat frame;
+    camera >> frame; // get a new frame from camera
+    
+    
+    imwrite(file_name, frame);
+}   
 
 int main(int argc, char *argv[]){
     
     
     std::string twitter_file_name("/Users/trx/projetunicorn/unicorn/tweets.txt"); //default
     std::string data_file_name("/Users/trx/projetunicorn/unicorn/data.txt"); //fichier des données par defaut
+    std::string img_file_name("/Users/trx/projetunicorn/unicorn/img.jpg"); //fichier des données par defaut
     
     int iterations = ITERATIONS;
     int log_p = LOG_P;
@@ -219,19 +229,20 @@ int main(int argc, char *argv[]){
             }
         }
     }
-    
-    /*while( access( twitter_file_name.c_str(), F_OK ) == -1 ) { // until the twitter file exists
-        usleep(100000); // 1/10 second
-    }*/
-    
+     
 
     char seed[129], commitment_seed[129], slothed[129], witness[(log_p/4) + 1]; 
     
-    char rand[129];
-    generateRandom(rand);
+    cv::VideoCapture camera(0); // open the default camera
+    if(!camera.isOpened()) {  // check if we succeeded
+        std::cout << "ERROR: Failed to connect to the webcam" << std::endl;
+        return -1;
+    }
+
+    image_capture(img_file_name,camera);
     
     /*hash rand + contenu du fichier des tweets*/
-    digest_rand_and_file(rand, twitter_file_name.c_str(), seed, "SHA512");
+    digest_img_and_file(img_file_name.c_str(), twitter_file_name.c_str(), seed, "SHA512");
     
 
     //digest(seed, seed, "SHA512");
@@ -242,7 +253,7 @@ int main(int argc, char *argv[]){
     /* On écrit dans le fichier les valeurs calculées: witness, commitment et slothed */
     
     int err =0;
-    err = getSlothResults(data_file_name.c_str(), witness, commitment_seed, slothed, seed, log_p, iterations, rand);
+    err = getSlothResults(data_file_name.c_str(), witness, commitment_seed, slothed, seed, log_p, iterations);
     if(err!=0) return err;
     
     
