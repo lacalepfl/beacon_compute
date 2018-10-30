@@ -187,7 +187,7 @@ void image_capture (std::string file_name, cv::VideoCapture camera) {
 int main(int argc, char *argv[]){
     
     
-    std::string twitter_file_name("/Users/trx/projetunicorn/unicorn/tweets.txt"); //default
+    std::string twitter_file_name("/Users/trx/projetunicorn/unicorn/seed.txt"); //default
     std::string data_file_name("/Users/trx/projetunicorn/unicorn/data.txt"); //fichier des données par defaut
     std::string img_file_name("/Users/trx/projetunicorn/unicorn/img.jpg"); //fichier des données par defaut
     
@@ -235,8 +235,12 @@ int main(int argc, char *argv[]){
     
     cv::VideoCapture camera(0); // open the default camera
     if(!camera.isOpened()) {  // check if we succeeded
-        std::cout << "ERROR: Failed to connect to the webcam" << std::endl;
-        return -1;
+        std::cerr << "ERROR: Failed to connect to the webcam, retry" << std::endl;
+        cv::VideoCapture camera(0); // open the default camera
+        if(!camera.isOpened()) {  // check if we succeeded
+            std::cerr << "ERROR: Failed to connect to the webcam" << std::endl;
+            return -1;
+        }
     }
 
     image_capture(img_file_name,camera);
