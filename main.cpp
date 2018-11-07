@@ -244,6 +244,8 @@ int main(int argc, char *argv[]){
     }
 
     image_capture(img_file_name,camera);
+
+    std::cout << "captured" <<std::endl;
     
     /*hash rand + contenu du fichier des tweets*/
     digest_img_and_file(img_file_name.c_str(), twitter_file_name.c_str(), seed, "SHA512");
