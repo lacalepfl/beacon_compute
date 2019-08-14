@@ -17,6 +17,7 @@
 #include <opencv2/opencv.hpp>
 
 #include "sloth.h"
+#include "timed_commit.h"
 
 
 #define ITERATIONS 155000
@@ -25,6 +26,10 @@
 #define ERR_MALLOC -2
 #define ERR_NULL   -3
 #define ENOMEM -4
+
+#define TIMEDITERATIONS 300000000000L
+#define BITSIZE_QP 1024
+#define AES_KEY_BITSIZE 256
 
 /*
  * 
@@ -131,8 +136,10 @@ int digest_file(const char *path, char outputBuffer[], const std::string digest_
     return 0;
 }
 
-int getSlothResults(const char* outFile, char witness[], char commitment[], char outputBuffer[], char string[], int bits, int iterations){
-    
+int getSlothResults(const char* outFile, char witness[], char img_hash[], char outputBuffer[], char string[], int bits, int iterations){
+    char commitment[129];
+    std::string S_and_hex_of_N=string;
+
     /* Erreur si le nom du fichier est null */
     if(outFile ==NULL){
         return ERR_NULL;
@@ -146,24 +153,36 @@ int getSlothResults(const char* outFile, char witness[], char commitment[], char
         return ERR_IO; 
     }
 
+    char *N, *P, *Q, *C, *k;
+
+    generate_commit(&N,&P,&Q,&C,&k,string,img_hash,BITSIZE_QP,TIMEDITERATIONS,AES_KEY_BITSIZE);
+
+    S_and_hex_of_N+=N;
+
     /* On écrit les résultats */
-    std::cout << commitment << std::endl;
-    sloth(witness, outputBuffer, string, bits, iterations);
-    fprintf(sortie, "%s\n", commitment);
+    std::cout << C << std::endl;
+    std::cout << N << std::endl;
+    std::cout << k << std::endl;
+    sloth(witness, outputBuffer, (S_and_hex_of_N).c_str(), bits, iterations);
+    fprintf(sortie, "%s\n", C);
     fprintf(sortie, "%s\n", witness);
     fprintf(sortie, "%s\n", outputBuffer);
+    fprintf(sortie, "%s\n", k);
+    fprintf(sortie, "%s\n", N);
+    fprintf(sortie, "%s\n", P);
+    fprintf(sortie, "%s\n", Q);
     fclose(sortie);
     return 0;
     
 }
 
-void digest_img_and_file( const char *img_filename, const char *tweet_filename, char outputBuffer[], const std::string digest_name){
+void digest_img_and_file( const char *img_filename, const char *tweet_filename, char outputBuffer[], char img_hash[], const std::string digest_name){
     
     digest_file(tweet_filename, outputBuffer, digest_name);
     std::string strtweet = outputBuffer;
 
-    digest_file(img_filename, outputBuffer, digest_name);
-    std::string strimg = outputBuffer;
+    digest_file(img_filename, img_hash, digest_name);
+    std::string strimg = img_hash;
 
     sloth_digest(outputBuffer, (strtweet + strimg).c_str());
         
@@ -173,8 +192,8 @@ void image_capture (std::string file_name, cv::VideoCapture camera) {
     int frame_width = 1280;
     int frame_height = 720;
     
-    camera.set(CV_CAP_PROP_FRAME_WIDTH, frame_width);
-    camera.set(CV_CAP_PROP_FRAME_HEIGHT, frame_height);
+    camera.set(cv::CAP_PROP_FRAME_WIDTH, frame_width);
+    camera.set(cv::CAP_PROP_FRAME_HEIGHT, frame_height);
     
     
     cv::Mat frame;
@@ -231,7 +250,7 @@ int main(int argc, char *argv[]){
     }
      
 
-    char seed[129], commitment_seed[129], slothed[129], witness[(log_p/4) + 1]; 
+    char seed[129], slothed[129], witness[(log_p/4) + 1], img_hash[129]; 
     
     cv::VideoCapture camera(0); // open the default camera
     if(!camera.isOpened()) {  // check if we succeeded
@@ -248,18 +267,13 @@ int main(int argc, char *argv[]){
     std::cout << "captured" <<std::endl;
     
     /*hash rand + contenu du fichier des tweets*/
-    digest_img_and_file(img_file_name.c_str(), twitter_file_name.c_str(), seed, "SHA512");
+    digest_img_and_file(img_file_name.c_str(), twitter_file_name.c_str(), seed, img_hash, "SHA512");
     
-
-    //digest(seed, seed, "SHA512");
-    //std::cout  << seed << std::endl;
-
-    digest(seed, commitment_seed, "SHA512");
     
     /* On écrit dans le fichier les valeurs calculées: witness, commitment et slothed */
     
     int err =0;
-    err = getSlothResults(data_file_name.c_str(), witness, commitment_seed, slothed, seed, log_p, iterations);
+    err = getSlothResults(data_file_name.c_str(), witness, img_hash, slothed, seed, log_p, iterations);
     if(err!=0) return err;
     
     

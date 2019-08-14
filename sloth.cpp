@@ -1,6 +1,8 @@
 #include <ctime>
 #include <string>
 #include <iostream>
+#include <sstream>
+#include <iomanip>
 
 #include <openssl/evp.h>
 #include <openssl/bio.h>
@@ -117,18 +119,29 @@ void sloth_preprocessing(mpz_t p, mpz_t seed, const char string[], int bits) {
     
     //mais donc str est initialisé a string, les données que l'on veut hacher
     std::string str = string;
+
+    std::stringstream convert;
     
     // find the prime
     int nbr_blocks = bits / 512;
     char hexa[bits/4 + 1]; // number of hexadecimal charater + 1 => car 1 nombre en hexa occupe 4 bits
-    
+
     //je hash le nombre de fois necessaire (4 blocs pour 2048 par exemple)
-    for (int i = 0; i < nbr_blocks; ++i) {
+    convert<<std::hex<<1;
+    sloth_digest(hexa , (str + convert.str()).c_str());
+    while(hexa[0]<'8'){
+        sloth_digest(hexa, hexa);
+    }
+
+    for (int i = 1; i < nbr_blocks; ++i) {
 		/* c_str Returns a pointer to an array that contains a null-terminated sequence of characters*/
 		//donc on hache les données concatenees a la sequence prime et 0i avec i allant de 0 a 3 pour ne pas 
 		//avoir a chaque fois pour chaque bloc la meme valeur du hash
 
-        sloth_digest(hexa + (128 * i), (str + "prime" + (char)('0' + i)).c_str());
+        convert.str(std::string());
+        convert<<std::hex<<(1+i);
+        sloth_digest(hexa + (128 * i), (str + convert.str()).c_str());
+
     }
     
     mpz_t tmp;
@@ -143,7 +156,7 @@ void sloth_preprocessing(mpz_t p, mpz_t seed, const char string[], int bits) {
     //Test bit (bits-1) in p and return 0 or 1 accordingly, donc si ce bit ==0 elle l'inverse 
     //et le rend = 1 car sinon ca veut dire que le dernier bit est 0 et donc divisible par 2 or nous
     //on veut un nombre premier
-    if (!mpz_tstbit(p,bits - 1)) mpz_combit(p, bits - 1);
+    //if (!mpz_tstbit(p,bits - 1)) mpz_combit(p, bits - 1);
     
     //generation du nombre premier tant que celui ci 
     //n'est pas congru à 3 mod 4
@@ -156,7 +169,9 @@ void sloth_preprocessing(mpz_t p, mpz_t seed, const char string[], int bits) {
     for (int i = 0; i < nbr_blocks; ++i) {
 		//On hache cette fois ci la sequence de données + le string seed et 0i  
 		//on rajoute prime et seed pour avoir des valeurs de hachage differentes pour seed et le nombre premier
-        sloth_digest(hexa + (128 * i), (str + "seed" + (char)('0' + i)).c_str());
+        convert.str(std::string());
+        convert<<std::hex<<(5+i);
+        sloth_digest(hexa + (128 * i), (str + convert.str()).c_str());
     }
     
     //initialise seed depuis hexa 
@@ -198,7 +213,7 @@ void sloth_core(mpz_t witness, const mpz_t seed, int iterations, const mpz_t p) 
 }
 
 // computes witness = the sloth witness, for the given seed, number of iterations ( iterations = l dans la feuille) and prime p
-void sloth(char witness[], char outputBuffer[], char string[], int bits, int iterations) {
+void sloth(char witness[], char outputBuffer[], const char string[], int bits, int iterations) {
     mpz_t p, seed_mpz, witness_mpz;
     mpz_init(p);
     mpz_init(seed_mpz);
