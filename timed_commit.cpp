@@ -131,7 +131,7 @@ static void xor_mod(mpz_t result, const mpz_t input1, const mpz_t flip, const mp
     }
 }
 
-void *generate_prime( void* p){
+/*void *generate_prime( void* p){
   thread_param* param= ((thread_param *)p);
 
   int rest=(param->w)*128;
@@ -167,6 +167,44 @@ void *generate_prime( void* p){
   mpz_set_str(*(param->result),hexa,16);
   next_prime(*(param->result),*(param->result));
 
+}//*/
+
+void generate_prime( mpz_t result,const char* s,const int i,const int w){
+
+  int rest=w*128;
+  int charpointer=0;
+  char hash[129];
+  char hexa[rest +1];
+  long locali=i;
+
+  std::string str(s);
+  std::stringstream convert;
+
+  convert<<std::hex<<locali;
+  digest((str+ convert.str()).c_str(), hash,  "SHA512");
+  while(hash[0]<'8'){
+    digest(hash, hash,  "SHA512");
+  }
+  locali++;
+  rest-=128;
+
+  while(rest>0)
+        {
+        strncpy(hexa+charpointer,hash,128);
+        charpointer+=128;
+
+        convert.str(std::string());
+        convert<<std::hex<<locali;
+        digest((str+ convert.str()).c_str(), hash,  "SHA512");
+        locali++;
+        rest-=128;
+        }
+
+  strncpy(hexa+charpointer,hash,128+rest);
+
+  mpz_set_str(result,hexa,16);
+  next_prime(result,result);
+
 }
 
 
@@ -190,7 +228,7 @@ void generate_commit(char** N, char** P, char** Q, char** C, char** k, char* S, 
   digest(S, bufdigest,  "SHA512");
   mpz_set_str(Cm,bufdigest,16);
 
-  // generate primes
+  /*/ generate primes
   pthread_t threads[2];
   thread_param params[2];
   params[0].result = &primes[0];
@@ -202,14 +240,14 @@ void generate_commit(char** N, char** P, char** Q, char** C, char** k, char* S, 
   params[1].i = 3;
   params[1].w = 2;
 
-  /*pthread_create(&threads[0], NULL, &generate_prime, (void *)&params[0]);
+  pthread_create(&threads[0], NULL, &generate_prime, (void *)&params[0]);
   pthread_create(&threads[1], NULL, &generate_prime, (void *)&params[1]);
 
   pthread_join(threads[0],NULL); 
   pthread_join(threads[1],NULL);*/
 
-  generate_prime((void *)&params[0]);
-  generate_prime((void *)&params[1]); 
+  generate_prime(primes[0],img_hash,1,2);
+  generate_prime(primes[1],img_hash,3,2);
 
   //-----------------
 
