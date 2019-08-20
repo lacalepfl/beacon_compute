@@ -270,7 +270,10 @@ void generate_commit(char** N, char** P, char** Q, char** C, char** k, char* S, 
   *N=mpz_get_str(NULL,16,Nm);
   *P=mpz_get_str(NULL,16,primes[0]);
   *Q=mpz_get_str(NULL,16,primes[1]);
-  *C=mpz_get_str(NULL,16,Cm);
+  (*C) = new char[129];
+  (*C)[128]='\0';
+  strncpy((*C),bufdigest,128);
+  //*C=mpz_get_str(NULL,16,Cm);
 
 
   mpz_clear(Nm);
